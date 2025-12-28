@@ -34,6 +34,7 @@ const Login = () => {
     });
     
     setIsLoading(false);
+    navigate('/dashboard');
   };
 
   return (
