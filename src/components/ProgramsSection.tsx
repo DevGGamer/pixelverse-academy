@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ const programs = [
     description: 'Первые шаги в программировании через создание простых игр в Scratch и Roblox Studio',
     skills: ['Scratch', 'Roblox Studio', 'Логика'],
     color: 'from-pink-500 to-rose-500',
+    slug: 'game-creation',
   },
   {
     icon: Code,
@@ -21,6 +23,7 @@ const programs = [
     description: 'Изучение основ Python через создание интересных проектов и мини-игр',
     skills: ['Python', 'Алгоритмы', 'Pygame'],
     color: 'from-yellow-500 to-orange-500',
+    slug: 'python-kids',
   },
   {
     icon: Globe,
@@ -30,6 +33,7 @@ const programs = [
     description: 'Создание собственных сайтов и веб-приложений с нуля',
     skills: ['HTML', 'CSS', 'JavaScript'],
     color: 'from-blue-500 to-cyan-500',
+    slug: 'web-development',
   },
   {
     icon: Palette,
@@ -39,6 +43,7 @@ const programs = [
     description: 'Разработка полноценных игр с использованием Unity и C#',
     skills: ['Unity', 'C#', '3D-моделирование'],
     color: 'from-purple-500 to-violet-500',
+    slug: 'game-design',
   },
   {
     icon: Smartphone,
@@ -48,6 +53,7 @@ const programs = [
     description: 'Создание приложений для Android и iOS с использованием современных технологий',
     skills: ['React Native', 'Flutter', 'UI/UX'],
     color: 'from-green-500 to-emerald-500',
+    slug: 'mobile-apps',
   },
   {
     icon: Cpu,
@@ -57,6 +63,7 @@ const programs = [
     description: 'Погружение в мир машинного обучения и нейронных сетей',
     skills: ['Python', 'TensorFlow', 'Data Science'],
     color: 'from-primary to-secondary',
+    slug: 'artificial-intelligence',
   },
 ];
 
@@ -114,9 +121,11 @@ const ProgramsSection = () => {
                     </span>
                   ))}
                 </div>
-                <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground">
-                  Подробнее
-                </Button>
+                <Link to={`/course/${program.slug}`}>
+                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground">
+                    Подробнее
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ))}
