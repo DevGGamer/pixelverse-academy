@@ -15,6 +15,7 @@ import {
   Trophy,
   Flame
 } from 'lucide-react';
+import { Link as RouterLink } from 'react-router-dom';
 
 const Dashboard = () => {
   // Mock student data
@@ -34,6 +35,7 @@ const Dashboard = () => {
     { path: '/dashboard/progress', label: 'Прогресс обучения', icon: TrendingUp, color: 'from-green-500 to-emerald-500' },
     { path: '/dashboard/schedule', label: 'Расписание', icon: Calendar, color: 'from-purple-500 to-pink-500' },
     { path: '/dashboard/projects', label: 'Мои проекты', icon: FolderOpen, color: 'from-orange-500 to-yellow-500' },
+    { path: '/dashboard/achievements', label: 'Достижения', icon: Trophy, color: 'from-yellow-500 to-amber-500' },
     { path: '/dashboard/community', label: 'Сообщество', icon: Users, color: 'from-primary to-secondary' },
   ];
 
@@ -79,11 +81,11 @@ const Dashboard = () => {
                     <span className="font-bold text-foreground">{student.streak}</span>
                     <span className="text-muted-foreground text-sm">дней подряд</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <RouterLink to="/dashboard/achievements" className="flex items-center gap-2 hover:text-primary transition-colors">
                     <Trophy className="w-5 h-5 text-primary" />
                     <span className="font-bold text-foreground">{student.achievements}</span>
                     <span className="text-muted-foreground text-sm">достижений</span>
-                  </div>
+                  </RouterLink>
                 </div>
               </div>
 
@@ -122,7 +124,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Navigation Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {dashboardCards.map((card) => (
             <Link key={card.path} to={card.path}>
               <Card variant="glass" className="h-full group hover:border-primary/50 transition-all duration-300 hover:scale-105">
