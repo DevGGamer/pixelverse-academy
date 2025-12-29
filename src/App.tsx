@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import CourseDetail from "./pages/CourseDetail";
 
 // Dashboard pages
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -15,6 +16,10 @@ import Schedule from "./pages/dashboard/Schedule";
 import MyProjects from "./pages/dashboard/MyProjects";
 import Community from "./pages/dashboard/Community";
 import Profile from "./pages/dashboard/Profile";
+import VideoLesson from "./pages/dashboard/VideoLesson";
+import AssignmentView from "./pages/dashboard/AssignmentView";
+import AssignmentSubmit from "./pages/dashboard/AssignmentSubmit";
+import AssignmentFeedback from "./pages/dashboard/AssignmentFeedback";
 
 const queryClient = new QueryClient();
 
@@ -27,11 +32,16 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/course/:courseSlug" element={<CourseDetail />} />
           
           {/* Dashboard routes */}
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/courses" element={<MyCourses />} />
           <Route path="/dashboard/courses/:courseId" element={<CurrentCourse />} />
+          <Route path="/dashboard/courses/:courseId/lesson/:lessonId" element={<VideoLesson />} />
+          <Route path="/dashboard/courses/:courseId/assignment/:assignmentId" element={<AssignmentView />} />
+          <Route path="/dashboard/courses/:courseId/assignment/:assignmentId/submit" element={<AssignmentSubmit />} />
+          <Route path="/dashboard/courses/:courseId/assignment/:assignmentId/feedback" element={<AssignmentFeedback />} />
           <Route path="/dashboard/progress" element={<CurrentCourse />} />
           <Route path="/dashboard/schedule" element={<Schedule />} />
           <Route path="/dashboard/projects" element={<MyProjects />} />
