@@ -20,6 +20,7 @@ import VideoLesson from "./pages/dashboard/VideoLesson";
 import AssignmentView from "./pages/dashboard/AssignmentView";
 import AssignmentSubmit from "./pages/dashboard/AssignmentSubmit";
 import AssignmentFeedback from "./pages/dashboard/AssignmentFeedback";
+import Achievements from "./pages/dashboard/Achievements";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/dashboard/progress" element={<CurrentCourse />} />
           <Route path="/dashboard/schedule" element={<Schedule />} />
           <Route path="/dashboard/projects" element={<MyProjects />} />
+          <Route path="/dashboard/achievements" element={<Achievements />} />
           <Route path="/dashboard/community" element={<Community />} />
           <Route path="/dashboard/profile" element={<Profile />} />
           

@@ -11,6 +11,7 @@ import {
   Users, 
   LogOut,
   User,
+  Trophy,
   Coins,
   ChevronLeft
 } from 'lucide-react';
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/dashboard/progress', label: 'Прогресс обучения', icon: TrendingUp },
   { path: '/dashboard/schedule', label: 'Расписание', icon: Calendar },
   { path: '/dashboard/projects', label: 'Мои проекты', icon: FolderOpen },
+  { path: '/dashboard/achievements', label: 'Достижения', icon: Trophy },
   { path: '/dashboard/community', label: 'Сообщество', icon: Users },
 ];
 
