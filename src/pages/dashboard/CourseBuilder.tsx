@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -28,7 +29,9 @@ import {
   FileText,
   Upload,
   BookOpen,
-  ChevronLeft
+  ChevronLeft,
+  Palette,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -51,19 +54,24 @@ interface CourseFormData {
   name: string;
   ageRange: string;
   icon: string;
+  customIconUrl: string;
+  useCustomIcon: boolean;
   color: string;
+  customColor1: string;
+  customColor2: string;
+  useCustomColors: boolean;
   isImportant: boolean;
   description: string;
   modules: Module[];
 }
 
 const colorOptions = [
-  { value: 'from-green-500 to-emerald-600', label: 'Зелёный', preview: 'bg-gradient-to-r from-green-500 to-emerald-600' },
-  { value: 'from-blue-500 to-cyan-600', label: 'Синий', preview: 'bg-gradient-to-r from-blue-500 to-cyan-600' },
-  { value: 'from-purple-500 to-pink-600', label: 'Фиолетовый', preview: 'bg-gradient-to-r from-purple-500 to-pink-600' },
-  { value: 'from-orange-500 to-amber-600', label: 'Оранжевый', preview: 'bg-gradient-to-r from-orange-500 to-amber-600' },
-  { value: 'from-red-500 to-rose-600', label: 'Красный', preview: 'bg-gradient-to-r from-red-500 to-rose-600' },
-  { value: 'from-primary to-secondary', label: 'Космический', preview: 'bg-gradient-to-r from-primary to-secondary' },
+  { value: 'from-green-500 to-emerald-600', label: 'Зелёный', color1: '#22c55e', color2: '#059669' },
+  { value: 'from-blue-500 to-cyan-600', label: 'Синий', color1: '#3b82f6', color2: '#0891b2' },
+  { value: 'from-purple-500 to-pink-600', label: 'Фиолетовый', color1: '#a855f7', color2: '#db2777' },
+  { value: 'from-orange-500 to-amber-600', label: 'Оранжевый', color1: '#f97316', color2: '#d97706' },
+  { value: 'from-red-500 to-rose-600', label: 'Красный', color1: '#ef4444', color2: '#e11d48' },
+  { value: 'from-primary to-secondary', label: 'Космический', color1: '#8b5cf6', color2: '#06b6d4' },
 ];
 
 const iconOptions = ['🐍', '🎮', '🌐', '📱', '🤖', '🎨', '🔧', '💻', '🚀', '⭐', '🎯', '🧩'];
@@ -73,12 +81,18 @@ const CourseBuilder = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isNewCourse = courseId === 'new';
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<CourseFormData>({
     name: isNewCourse ? '' : 'Python для начинающих',
     ageRange: isNewCourse ? '' : '10-14',
     icon: isNewCourse ? '🎮' : '🐍',
+    customIconUrl: '',
+    useCustomIcon: false,
     color: isNewCourse ? 'from-primary to-secondary' : 'from-green-500 to-emerald-600',
+    customColor1: '#8b5cf6',
+    customColor2: '#06b6d4',
+    useCustomColors: false,
     isImportant: !isNewCourse,
     description: isNewCourse ? '' : 'Курс по основам программирования на Python для детей.',
     modules: isNewCourse ? [] : [
@@ -110,6 +124,39 @@ const CourseBuilder = () => {
       description: `«${formData.name}» успешно ${isNewCourse ? 'создан' : 'обновлён'}`,
     });
     navigate('/dashboard/methodologist');
+  };
+
+  // Handle custom icon upload
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ 
+          ...formData, 
+          customIconUrl: reader.result as string,
+          useCustomIcon: true 
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Get the gradient style for preview
+  const getGradientStyle = () => {
+    if (formData.useCustomColors) {
+      return {
+        background: `linear-gradient(135deg, ${formData.customColor1}, ${formData.customColor2})`
+      };
+    }
+    return {};
+  };
+
+  const getGradientClass = () => {
+    if (formData.useCustomColors) {
+      return '';
+    }
+    return `bg-gradient-to-br ${formData.color}`;
   };
 
   // Module management
@@ -244,45 +291,172 @@ const CourseBuilder = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Иконка курса</Label>
-              <div className="flex flex-wrap gap-2">
-                {iconOptions.map((icon) => (
-                  <button
-                    key={icon}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, icon })}
-                    className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                      formData.icon === icon 
-                        ? 'bg-primary/20 border-2 border-primary ring-2 ring-primary/30' 
-                        : 'bg-card/50 border border-border/50 hover:border-primary/50'
-                    }`}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Цвет плашки курса</Label>
-              <div className="flex flex-wrap gap-2">
-                {colorOptions.map((color) => (
-                  <button
-                    key={color.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, color: color.value })}
-                    className={`w-10 h-10 rounded-lg ${color.preview} transition-all ${
-                      formData.color === color.value 
-                        ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background' 
-                        : 'hover:scale-110'
-                    }`}
-                    title={color.label}
+          {/* Icon Selection with Tabs */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" />
+              Иконка курса
+            </Label>
+            <Tabs 
+              value={formData.useCustomIcon ? 'custom' : 'template'} 
+              onValueChange={(v) => setFormData({ ...formData, useCustomIcon: v === 'custom' })}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="template">Шаблонные</TabsTrigger>
+                <TabsTrigger value="custom">Своя иконка</TabsTrigger>
+              </TabsList>
+              <TabsContent value="template" className="mt-0">
+                <div className="flex flex-wrap gap-2">
+                  {iconOptions.map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, icon, useCustomIcon: false })}
+                      className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
+                        formData.icon === icon && !formData.useCustomIcon
+                          ? 'bg-primary/20 border-2 border-primary ring-2 ring-primary/30' 
+                          : 'bg-card/50 border border-border/50 hover:border-primary/50'
+                      }`}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="custom" className="mt-0">
+                <div className="flex items-center gap-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIconUpload}
+                    className="hidden"
                   />
-                ))}
-              </div>
-            </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Загрузить изображение
+                  </Button>
+                  {formData.customIconUrl && (
+                    <div className="relative">
+                      <img 
+                        src={formData.customIconUrl} 
+                        alt="Custom icon" 
+                        className="w-12 h-12 rounded-lg object-cover border-2 border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, customIconUrl: '', useCustomIcon: false })}
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!formData.customIconUrl && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Рекомендуемый размер: 128×128 пикселей
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Color Selection with Tabs */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Palette className="w-4 h-4" />
+              Цвет плашки курса
+            </Label>
+            <Tabs 
+              value={formData.useCustomColors ? 'custom' : 'template'} 
+              onValueChange={(v) => setFormData({ ...formData, useCustomColors: v === 'custom' })}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="template">Шаблонные</TabsTrigger>
+                <TabsTrigger value="custom">Свой градиент</TabsTrigger>
+              </TabsList>
+              <TabsContent value="template" className="mt-0">
+                <div className="flex flex-wrap gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: color.value, useCustomColors: false })}
+                      className={`w-10 h-10 rounded-lg bg-gradient-to-br transition-all ${
+                        color.value === 'from-green-500 to-emerald-600' ? 'from-green-500 to-emerald-600' :
+                        color.value === 'from-blue-500 to-cyan-600' ? 'from-blue-500 to-cyan-600' :
+                        color.value === 'from-purple-500 to-pink-600' ? 'from-purple-500 to-pink-600' :
+                        color.value === 'from-orange-500 to-amber-600' ? 'from-orange-500 to-amber-600' :
+                        color.value === 'from-red-500 to-rose-600' ? 'from-red-500 to-rose-600' :
+                        'from-primary to-secondary'
+                      } ${
+                        formData.color === color.value && !formData.useCustomColors
+                          ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background' 
+                          : 'hover:scale-110'
+                      }`}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="custom" className="mt-0 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="color1" className="text-sm text-muted-foreground">Цвет 1 (начало градиента)</Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        id="color1"
+                        value={formData.customColor1}
+                        onChange={(e) => setFormData({ ...formData, customColor1: e.target.value })}
+                        className="w-12 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={formData.customColor1}
+                        onChange={(e) => setFormData({ ...formData, customColor1: e.target.value })}
+                        placeholder="#8b5cf6"
+                        className="flex-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="color2" className="text-sm text-muted-foreground">Цвет 2 (конец градиента)</Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        id="color2"
+                        value={formData.customColor2}
+                        onChange={(e) => setFormData({ ...formData, customColor2: e.target.value })}
+                        className="w-12 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={formData.customColor2}
+                        onChange={(e) => setFormData({ ...formData, customColor2: e.target.value })}
+                        placeholder="#06b6d4"
+                        className="flex-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Предпросмотр градиента</Label>
+                  <div 
+                    className="h-16 rounded-xl"
+                    style={{ background: `linear-gradient(135deg, ${formData.customColor1}, ${formData.customColor2})` }}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           <div className="flex items-center justify-between p-4 rounded-xl bg-background/50">
@@ -311,10 +485,21 @@ const CourseBuilder = () => {
 
         {/* Course Preview */}
         <div className="rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-6 space-y-4">
-          <h2 className="text-lg font-display font-bold text-foreground">Предпросмотр</h2>
+          <h2 className="text-lg font-display font-bold text-foreground">Предпросмотр карточки курса</h2>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-background/50">
-            <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${formData.color} flex items-center justify-center text-3xl`}>
-              {formData.icon}
+            <div 
+              className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl ${getGradientClass()}`}
+              style={getGradientStyle()}
+            >
+              {formData.useCustomIcon && formData.customIconUrl ? (
+                <img 
+                  src={formData.customIconUrl} 
+                  alt="Course icon" 
+                  className="w-full h-full rounded-xl object-cover"
+                />
+              ) : (
+                formData.icon
+              )}
             </div>
             <div>
               <h3 className="font-display font-bold text-foreground">
