@@ -21,6 +21,9 @@ import AssignmentView from "./pages/dashboard/AssignmentView";
 import AssignmentSubmit from "./pages/dashboard/AssignmentSubmit";
 import AssignmentFeedback from "./pages/dashboard/AssignmentFeedback";
 import Achievements from "./pages/dashboard/Achievements";
+import AdminPanel from "./pages/dashboard/AdminPanel";
+import MethodologistPanel from "./pages/dashboard/MethodologistPanel";
+import CourseBuilder from "./pages/dashboard/CourseBuilder";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +52,9 @@ const App = () => (
           <Route path="/dashboard/achievements" element={<Achievements />} />
           <Route path="/dashboard/community" element={<Community />} />
           <Route path="/dashboard/profile" element={<Profile />} />
+          <Route path="/dashboard/admin" element={<AdminPanel />} />
+          <Route path="/dashboard/methodologist" element={<MethodologistPanel />} />
+          <Route path="/dashboard/course-builder/:courseId" element={<CourseBuilder />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
