@@ -24,6 +24,7 @@ import Achievements from "./pages/dashboard/Achievements";
 import AdminPanel from "./pages/dashboard/AdminPanel";
 import MethodologistPanel from "./pages/dashboard/MethodologistPanel";
 import CourseBuilder from "./pages/dashboard/CourseBuilder";
+import BalanceTopUp from "./pages/dashboard/BalanceTopUp";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
           <Route path="/dashboard/schedule" element={<Schedule />} />
           <Route path="/dashboard/projects" element={<MyProjects />} />
           <Route path="/dashboard/achievements" element={<Achievements />} />
+          <Route path="/dashboard/balance" element={<BalanceTopUp />} />
           <Route path="/dashboard/community" element={<Community />} />
           <Route path="/dashboard/profile" element={<Profile />} />
           <Route path="/dashboard/admin" element={<AdminPanel />} />

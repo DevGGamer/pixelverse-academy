@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +59,6 @@ interface UserData {
   phone: string;
   email: string;
   role: UserRole;
-  // Student-specific
   assignedCourses?: {
     courseId: string;
     courseName: string;
@@ -67,11 +66,24 @@ interface UserData {
     teacherName: string;
     startDate: string;
   }[];
-  parentId?: string; // For students: linked parent
-  // Parent-specific
-  childrenIds?: string[]; // For parents: linked students
-  // Teacher-specific
-  teachingCourseIds?: string[]; // For teachers: courses they lead
+  parentId?: string;
+  childrenIds?: string[];
+  teachingCourseIds?: string[];
+}
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}
+
+interface CourseAssignment {
+  courseId: string;
+  teacherId: string;
+  startDate: string;
 }
 
 const roleLabels: Record<UserRole, string> = {
@@ -166,47 +178,34 @@ const AdminPanel = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   
-  // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
     phone: '',
     email: '',
     password: '',
-    role: 'student' as UserRole,
+    role: 'student',
   });
   
-  // Student course assignments
-  const [courseAssignments, setCourseAssignments] = useState<{
-    courseId: string;
-    teacherId: string;
-    startDate: string;
-  }[]>([]);
-
-  // Parent-specific: selected children
+  const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([]);
   const [selectedChildrenIds, setSelectedChildrenIds] = useState<string[]>([]);
-  
-  // Teacher-specific: selected courses
   const [selectedTeachingCourseIds, setSelectedTeachingCourseIds] = useState<string[]>([]);
 
-  // Get all students for parent selection
   const allStudents = useMemo(() => 
     users.filter(u => u.role === 'student'), 
     [users]
   );
 
-  // Get all teachers for course assignment
   const allTeachers = useMemo(() => 
     users.filter(u => u.role === 'teacher'), 
     [users]
   );
 
-  // Get teachers who teach a specific course
-  const getTeachersForCourse = (courseId: string) => {
+  const getTeachersForCourse = useCallback((courseId: string) => {
     return allTeachers.filter(teacher => 
       teacher.teachingCourseIds?.includes(courseId)
     );
-  };
+  }, [allTeachers]);
 
   const filteredUsers = users.filter(user => 
     user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -214,7 +213,7 @@ const AdminPanel = () => {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       firstName: '',
       lastName: '',
@@ -226,9 +225,9 @@ const AdminPanel = () => {
     setCourseAssignments([]);
     setSelectedChildrenIds([]);
     setSelectedTeachingCourseIds([]);
-  };
+  }, []);
 
-  const handleCreateUser = () => {
+  const handleCreateUser = useCallback(() => {
     const newUser: UserData = {
       id: Date.now().toString(),
       firstName: formData.firstName,
@@ -238,7 +237,6 @@ const AdminPanel = () => {
       role: formData.role,
     };
 
-    // Role-specific data
     if (formData.role === 'student') {
       newUser.assignedCourses = courseAssignments.map(ca => ({
         ...ca,
@@ -252,7 +250,6 @@ const AdminPanel = () => {
       newUser.teachingCourseIds = selectedTeachingCourseIds;
     }
     
-    // Update parent references in students
     let updatedUsers = [...users, newUser];
     if (formData.role === 'parent' && selectedChildrenIds.length > 0) {
       updatedUsers = updatedUsers.map(u => 
@@ -269,9 +266,9 @@ const AdminPanel = () => {
       title: 'Пользователь создан',
       description: `${newUser.firstName} ${newUser.lastName} успешно добавлен`,
     });
-  };
+  }, [formData, courseAssignments, selectedChildrenIds, selectedTeachingCourseIds, users, allTeachers, resetForm, toast]);
 
-  const handleEditUser = () => {
+  const handleEditUser = useCallback(() => {
     if (!selectedUser) return;
     
     let updatedUsers = users.map(user => {
@@ -285,7 +282,6 @@ const AdminPanel = () => {
           role: formData.role,
         };
 
-        // Role-specific data
         if (formData.role === 'student') {
           updatedUser.assignedCourses = courseAssignments.map(ca => ({
             ...ca,
@@ -293,21 +289,17 @@ const AdminPanel = () => {
             teacherName: allTeachers.find(t => t.id === ca.teacherId)?.firstName + ' ' + 
                          allTeachers.find(t => t.id === ca.teacherId)?.lastName || '',
           }));
-          // Clear non-student fields
           delete updatedUser.childrenIds;
           delete updatedUser.teachingCourseIds;
         } else if (formData.role === 'parent') {
           updatedUser.childrenIds = selectedChildrenIds;
-          // Clear non-parent fields
           delete updatedUser.assignedCourses;
           delete updatedUser.teachingCourseIds;
         } else if (formData.role === 'teacher') {
           updatedUser.teachingCourseIds = selectedTeachingCourseIds;
-          // Clear non-teacher fields
           delete updatedUser.assignedCourses;
           delete updatedUser.childrenIds;
         } else {
-          // Admin - clear all role-specific fields
           delete updatedUser.assignedCourses;
           delete updatedUser.childrenIds;
           delete updatedUser.teachingCourseIds;
@@ -318,13 +310,10 @@ const AdminPanel = () => {
       return user;
     });
 
-    // Update parent references in students if editing a parent
     if (formData.role === 'parent') {
-      // Remove old parent references
       updatedUsers = updatedUsers.map(u => 
         u.parentId === selectedUser.id ? { ...u, parentId: undefined } : u
       );
-      // Add new parent references
       updatedUsers = updatedUsers.map(u => 
         selectedChildrenIds.includes(u.id) ? { ...u, parentId: selectedUser.id } : u
       );
@@ -338,22 +327,19 @@ const AdminPanel = () => {
       title: 'Пользователь обновлён',
       description: 'Данные успешно сохранены',
     });
-  };
+  }, [selectedUser, formData, courseAssignments, selectedChildrenIds, selectedTeachingCourseIds, users, allTeachers, resetForm, toast]);
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = useCallback(() => {
     if (!selectedUser) return;
     
-    // Clear references to this user
     let updatedUsers = users.filter(user => user.id !== selectedUser.id);
     
-    // If deleting a parent, clear parentId from children
     if (selectedUser.role === 'parent') {
       updatedUsers = updatedUsers.map(u => 
         u.parentId === selectedUser.id ? { ...u, parentId: undefined } : u
       );
     }
     
-    // If deleting a student, remove from parent's childrenIds
     if (selectedUser.role === 'student') {
       updatedUsers = updatedUsers.map(u => ({
         ...u,
@@ -369,9 +355,9 @@ const AdminPanel = () => {
       description: `${selectedUser.firstName} ${selectedUser.lastName} удалён из системы`,
       variant: 'destructive',
     });
-  };
+  }, [selectedUser, users, toast]);
 
-  const openEditDialog = (user: UserData) => {
+  const openEditDialog = useCallback((user: UserData) => {
     setSelectedUser(user);
     setFormData({
       firstName: user.firstName,
@@ -389,57 +375,56 @@ const AdminPanel = () => {
     setSelectedChildrenIds(user.childrenIds || []);
     setSelectedTeachingCourseIds(user.teachingCourseIds || []);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const openDeleteDialog = (user: UserData) => {
+  const openDeleteDialog = useCallback((user: UserData) => {
     setSelectedUser(user);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const addCourseAssignment = () => {
-    setCourseAssignments([...courseAssignments, { courseId: '', teacherId: '', startDate: '' }]);
-  };
+  const addCourseAssignment = useCallback(() => {
+    setCourseAssignments(prev => [...prev, { courseId: '', teacherId: '', startDate: '' }]);
+  }, []);
 
-  const updateCourseAssignment = (index: number, field: string, value: string) => {
-    const updated = [...courseAssignments];
-    // If changing course, reset teacherId since teachers are course-specific
-    if (field === 'courseId') {
-      updated[index] = { ...updated[index], courseId: value, teacherId: '' };
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
-    }
-    setCourseAssignments(updated);
-  };
+  const updateCourseAssignment = useCallback((index: number, field: string, value: string) => {
+    setCourseAssignments(prev => {
+      const updated = [...prev];
+      if (field === 'courseId') {
+        updated[index] = { ...updated[index], courseId: value, teacherId: '' };
+      } else {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return updated;
+    });
+  }, []);
 
-  const removeCourseAssignment = (index: number) => {
-    setCourseAssignments(courseAssignments.filter((_, i) => i !== index));
-  };
+  const removeCourseAssignment = useCallback((index: number) => {
+    setCourseAssignments(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const toggleChildSelection = (studentId: string) => {
+  const toggleChildSelection = useCallback((studentId: string) => {
     setSelectedChildrenIds(prev => 
       prev.includes(studentId) 
         ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
     );
-  };
+  }, []);
 
-  const toggleTeachingCourse = (courseId: string) => {
+  const toggleTeachingCourse = useCallback((courseId: string) => {
     setSelectedTeachingCourseIds(prev => 
       prev.includes(courseId) 
         ? prev.filter(id => id !== courseId)
         : [...prev, courseId]
     );
-  };
+  }, []);
 
-  // Get parent name for a student
-  const getParentName = (parentId?: string) => {
+  const getParentName = useCallback((parentId?: string) => {
     if (!parentId) return null;
     const parent = users.find(u => u.id === parentId);
     return parent ? `${parent.firstName} ${parent.lastName}` : null;
-  };
+  }, [users]);
 
-  // Get children names for a parent
-  const getChildrenNames = (childrenIds?: string[]) => {
+  const getChildrenNames = useCallback((childrenIds?: string[]) => {
     if (!childrenIds || childrenIds.length === 0) return null;
     return childrenIds
       .map(id => {
@@ -448,272 +433,40 @@ const AdminPanel = () => {
       })
       .filter(Boolean)
       .join(', ');
-  };
+  }, [users]);
 
-  // Get course names for a teacher
-  const getTeachingCourseNames = (courseIds?: string[]) => {
+  const getTeachingCourseNames = useCallback((courseIds?: string[]) => {
     if (!courseIds || courseIds.length === 0) return null;
     return courseIds
       .map(id => mockCourses.find(c => c.id === id)?.name)
       .filter(Boolean)
       .join(', ');
-  };
+  }, []);
 
-  const UserFormContent = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="firstName">Имя</Label>
-          <Input
-            id="firstName"
-            value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            placeholder="Введите имя"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="lastName">Фамилия</Label>
-          <Input
-            id="lastName"
-            value={formData.lastName}
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            placeholder="Введите фамилию"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="phone">Телефон</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="+7 (999) 123-45-67"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Электронная почта</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="email@example.com"
-          />
-        </div>
-      </div>
+  // Form field change handlers - using stable callbacks
+  const handleFirstNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, firstName: e.target.value }));
+  }, []);
 
-      {!selectedUser && (
-        <div className="space-y-2">
-          <Label htmlFor="password">Пароль</Label>
-          <Input
-            id="password"
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            placeholder="Введите пароль"
-          />
-        </div>
-      )}
+  const handleLastNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, lastName: e.target.value }));
+  }, []);
 
-      <div className="space-y-2">
-        <Label htmlFor="role">Роль пользователя</Label>
-        <Select 
-          value={formData.role} 
-          onValueChange={(value: UserRole) => setFormData({ ...formData, role: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Выберите роль" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">Админ</SelectItem>
-            <SelectItem value="student">Ученик</SelectItem>
-            <SelectItem value="teacher">Учитель</SelectItem>
-            <SelectItem value="parent">Родитель</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, phone: e.target.value }));
+  }, []);
 
-      {/* Teacher Course Selection */}
-      {formData.role === 'teacher' && (
-        <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
-          <Label className="text-base font-semibold flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-primary" />
-            Ведёт курсы
-          </Label>
-          <p className="text-sm text-muted-foreground">
-            Выберите курсы, которые ведёт преподаватель
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {mockCourses.map(course => (
-              <label
-                key={course.id}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                  selectedTeachingCourseIds.includes(course.id)
-                    ? 'bg-primary/20 border border-primary/50'
-                    : 'bg-background/50 border border-border/30 hover:border-primary/30'
-                }`}
-              >
-                <Checkbox
-                  checked={selectedTeachingCourseIds.includes(course.id)}
-                  onCheckedChange={() => toggleTeachingCourse(course.id)}
-                />
-                <span className="text-sm font-medium">{course.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, email: e.target.value }));
+  }, []);
 
-      {/* Parent Children Selection */}
-      {formData.role === 'parent' && (
-        <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
-          <Label className="text-base font-semibold flex items-center gap-2">
-            <Heart className="w-4 h-4 text-pink-500" />
-            Дети (ученики)
-          </Label>
-          <p className="text-sm text-muted-foreground">
-            Выберите учеников, для которых этот пользователь является родителем
-          </p>
-          {allStudents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Нет зарегистрированных учеников
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-              {allStudents
-                .filter(s => s.id !== selectedUser?.id) // Don't show self
-                .map(student => (
-                  <label
-                    key={student.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                      selectedChildrenIds.includes(student.id)
-                        ? 'bg-pink-500/20 border border-pink-500/50'
-                        : 'bg-background/50 border border-border/30 hover:border-pink-500/30'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={selectedChildrenIds.includes(student.id)}
-                      onCheckedChange={() => toggleChildSelection(student.id)}
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">
-                        {student.firstName} {student.lastName}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {student.email}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-            </div>
-          )}
-        </div>
-      )}
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, password: e.target.value }));
+  }, []);
 
-      {/* Student Course Assignments */}
-      {formData.role === 'student' && (
-        <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
-          <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">Назначенные курсы</Label>
-            <Button type="button" variant="outline" size="sm" onClick={addCourseAssignment}>
-              + Добавить курс
-            </Button>
-          </div>
-          
-          <p className="text-sm text-muted-foreground">
-            💡 Преподаватели фильтруются по выбранному курсу
-          </p>
-          
-          {courseAssignments.map((assignment, index) => {
-            const availableTeachers = assignment.courseId 
-              ? getTeachersForCourse(assignment.courseId)
-              : [];
-            
-            return (
-              <div key={index} className="space-y-3 p-3 rounded-lg bg-background/50">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Курс</Label>
-                    <Select
-                      value={assignment.courseId}
-                      onValueChange={(value) => updateCourseAssignment(index, 'courseId', value)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Выберите курс" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockCourses.map(course => (
-                          <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Преподаватель</Label>
-                    <Select
-                      value={assignment.teacherId}
-                      onValueChange={(value) => updateCourseAssignment(index, 'teacherId', value)}
-                      disabled={!assignment.courseId}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder={
-                          !assignment.courseId 
-                            ? 'Сначала выберите курс' 
-                            : availableTeachers.length === 0 
-                              ? 'Нет преподавателей'
-                              : 'Выберите преподавателя'
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTeachers.map(teacher => (
-                          <SelectItem key={teacher.id} value={teacher.id}>
-                            {teacher.firstName} {teacher.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {assignment.courseId && availableTeachers.length === 0 && (
-                      <p className="text-xs text-amber-500">
-                        ⚠️ Нет преподавателей для этого курса
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-end gap-3">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Дата начала</Label>
-                    <Input
-                      type="date"
-                      className="h-9"
-                      value={assignment.startDate}
-                      onChange={(e) => updateCourseAssignment(index, 'startDate', e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => removeCourseAssignment(index)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-          
-          {courseAssignments.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Курсы не назначены. Нажмите «Добавить курс» для назначения.
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  const handleRoleChange = useCallback((value: UserRole) => {
+    setFormData(prev => ({ ...prev, role: value }));
+  }, []);
 
   return (
     <DashboardLayout title="Админская панель">
@@ -832,7 +585,255 @@ const AdminPanel = () => {
               Заполните данные нового пользователя
             </DialogDescription>
           </DialogHeader>
-          <UserFormContent />
+          
+          {/* Form Fields - Inline instead of component to prevent re-renders */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-firstName">Имя</Label>
+                <Input
+                  id="create-firstName"
+                  value={formData.firstName}
+                  onChange={handleFirstNameChange}
+                  placeholder="Введите имя"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-lastName">Фамилия</Label>
+                <Input
+                  id="create-lastName"
+                  value={formData.lastName}
+                  onChange={handleLastNameChange}
+                  placeholder="Введите фамилию"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-phone">Телефон</Label>
+                <Input
+                  id="create-phone"
+                  value={formData.phone}
+                  onChange={handlePhoneChange}
+                  placeholder="+7 (999) 123-45-67"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-email">Электронная почта</Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleEmailChange}
+                  placeholder="email@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-password">Пароль</Label>
+              <Input
+                id="create-password"
+                type="password"
+                value={formData.password}
+                onChange={handlePasswordChange}
+                placeholder="Введите пароль"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="create-role">Роль пользователя</Label>
+              <Select value={formData.role} onValueChange={handleRoleChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Админ</SelectItem>
+                  <SelectItem value="student">Ученик</SelectItem>
+                  <SelectItem value="teacher">Учитель</SelectItem>
+                  <SelectItem value="parent">Родитель</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Teacher Course Selection */}
+            {formData.role === 'teacher' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  Ведёт курсы
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Выберите курсы, которые ведёт преподаватель
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {mockCourses.map(course => (
+                    <label
+                      key={course.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                        selectedTeachingCourseIds.includes(course.id)
+                          ? 'bg-primary/20 border border-primary/50'
+                          : 'bg-background/50 border border-border/30 hover:border-primary/30'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedTeachingCourseIds.includes(course.id)}
+                        onCheckedChange={() => toggleTeachingCourse(course.id)}
+                      />
+                      <span className="text-sm font-medium">{course.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Parent Children Selection */}
+            {formData.role === 'parent' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  Дети (ученики)
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Выберите учеников, для которых этот пользователь является родителем
+                </p>
+                {allStudents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Нет зарегистрированных учеников
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                    {allStudents.map(student => (
+                      <label
+                        key={student.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                          selectedChildrenIds.includes(student.id)
+                            ? 'bg-pink-500/20 border border-pink-500/50'
+                            : 'bg-background/50 border border-border/30 hover:border-pink-500/30'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={selectedChildrenIds.includes(student.id)}
+                          onCheckedChange={() => toggleChildSelection(student.id)}
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">
+                            {student.firstName} {student.lastName}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {student.email}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Student Course Assignments */}
+            {formData.role === 'student' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Назначенные курсы</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addCourseAssignment}>
+                    + Добавить курс
+                  </Button>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  💡 Преподаватели фильтруются по выбранному курсу
+                </p>
+                
+                {courseAssignments.map((assignment, index) => {
+                  const availableTeachers = assignment.courseId 
+                    ? getTeachersForCourse(assignment.courseId)
+                    : [];
+                  
+                  return (
+                    <div key={index} className="space-y-3 p-3 rounded-lg bg-background/50">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Курс</Label>
+                          <Select
+                            value={assignment.courseId}
+                            onValueChange={(value) => updateCourseAssignment(index, 'courseId', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Выберите курс" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {mockCourses.map(course => (
+                                <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Преподаватель</Label>
+                          <Select
+                            value={assignment.teacherId}
+                            onValueChange={(value) => updateCourseAssignment(index, 'teacherId', value)}
+                            disabled={!assignment.courseId}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder={
+                                !assignment.courseId 
+                                  ? 'Сначала выберите курс' 
+                                  : availableTeachers.length === 0 
+                                    ? 'Нет преподавателей'
+                                    : 'Выберите преподавателя'
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTeachers.map(teacher => (
+                                <SelectItem key={teacher.id} value={teacher.id}>
+                                  {teacher.firstName} {teacher.lastName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {assignment.courseId && availableTeachers.length === 0 && (
+                            <p className="text-xs text-amber-500">
+                              ⚠️ Нет преподавателей для этого курса
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Дата начала</Label>
+                          <Input
+                            type="date"
+                            className="h-9"
+                            value={assignment.startDate}
+                            onChange={(e) => updateCourseAssignment(index, 'startDate', e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeCourseAssignment(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {courseAssignments.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Курсы не назначены. Нажмите «Добавить курс» для назначения.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Отмена
@@ -853,7 +854,246 @@ const AdminPanel = () => {
               Измените данные пользователя
             </DialogDescription>
           </DialogHeader>
-          <UserFormContent />
+          
+          {/* Form Fields - Inline instead of component to prevent re-renders */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">Имя</Label>
+                <Input
+                  id="edit-firstName"
+                  value={formData.firstName}
+                  onChange={handleFirstNameChange}
+                  placeholder="Введите имя"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Фамилия</Label>
+                <Input
+                  id="edit-lastName"
+                  value={formData.lastName}
+                  onChange={handleLastNameChange}
+                  placeholder="Введите фамилию"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Телефон</Label>
+                <Input
+                  id="edit-phone"
+                  value={formData.phone}
+                  onChange={handlePhoneChange}
+                  placeholder="+7 (999) 123-45-67"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Электронная почта</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleEmailChange}
+                  placeholder="email@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Роль пользователя</Label>
+              <Select value={formData.role} onValueChange={handleRoleChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите роль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Админ</SelectItem>
+                  <SelectItem value="student">Ученик</SelectItem>
+                  <SelectItem value="teacher">Учитель</SelectItem>
+                  <SelectItem value="parent">Родитель</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Teacher Course Selection */}
+            {formData.role === 'teacher' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  Ведёт курсы
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Выберите курсы, которые ведёт преподаватель
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {mockCourses.map(course => (
+                    <label
+                      key={course.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                        selectedTeachingCourseIds.includes(course.id)
+                          ? 'bg-primary/20 border border-primary/50'
+                          : 'bg-background/50 border border-border/30 hover:border-primary/30'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedTeachingCourseIds.includes(course.id)}
+                        onCheckedChange={() => toggleTeachingCourse(course.id)}
+                      />
+                      <span className="text-sm font-medium">{course.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Parent Children Selection */}
+            {formData.role === 'parent' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  Дети (ученики)
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Выберите учеников, для которых этот пользователь является родителем
+                </p>
+                {allStudents.filter(s => s.id !== selectedUser?.id).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Нет зарегистрированных учеников
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                    {allStudents
+                      .filter(s => s.id !== selectedUser?.id)
+                      .map(student => (
+                        <label
+                          key={student.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedChildrenIds.includes(student.id)
+                              ? 'bg-pink-500/20 border border-pink-500/50'
+                              : 'bg-background/50 border border-border/30 hover:border-pink-500/30'
+                          }`}
+                        >
+                          <Checkbox
+                            checked={selectedChildrenIds.includes(student.id)}
+                            onCheckedChange={() => toggleChildSelection(student.id)}
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium">
+                              {student.firstName} {student.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {student.email}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Student Course Assignments */}
+            {formData.role === 'student' && (
+              <div className="space-y-4 p-4 rounded-xl bg-card/50 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Назначенные курсы</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addCourseAssignment}>
+                    + Добавить курс
+                  </Button>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  💡 Преподаватели фильтруются по выбранному курсу
+                </p>
+                
+                {courseAssignments.map((assignment, index) => {
+                  const availableTeachers = assignment.courseId 
+                    ? getTeachersForCourse(assignment.courseId)
+                    : [];
+                  
+                  return (
+                    <div key={index} className="space-y-3 p-3 rounded-lg bg-background/50">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Курс</Label>
+                          <Select
+                            value={assignment.courseId}
+                            onValueChange={(value) => updateCourseAssignment(index, 'courseId', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Выберите курс" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {mockCourses.map(course => (
+                                <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Преподаватель</Label>
+                          <Select
+                            value={assignment.teacherId}
+                            onValueChange={(value) => updateCourseAssignment(index, 'teacherId', value)}
+                            disabled={!assignment.courseId}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder={
+                                !assignment.courseId 
+                                  ? 'Сначала выберите курс' 
+                                  : availableTeachers.length === 0 
+                                    ? 'Нет преподавателей'
+                                    : 'Выберите преподавателя'
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTeachers.map(teacher => (
+                                <SelectItem key={teacher.id} value={teacher.id}>
+                                  {teacher.firstName} {teacher.lastName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {assignment.courseId && availableTeachers.length === 0 && (
+                            <p className="text-xs text-amber-500">
+                              ⚠️ Нет преподавателей для этого курса
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Дата начала</Label>
+                          <Input
+                            type="date"
+                            className="h-9"
+                            value={assignment.startDate}
+                            onChange={(e) => updateCourseAssignment(index, 'startDate', e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeCourseAssignment(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {courseAssignments.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Курсы не назначены. Нажмите «Добавить курс» для назначения.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Отмена

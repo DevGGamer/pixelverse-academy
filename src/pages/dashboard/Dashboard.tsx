@@ -13,9 +13,13 @@ import {
   Coins,
   Sparkles,
   Trophy,
-  Flame
+  Flame,
+  Wallet
 } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
+
+// Mock user role - in production this would come from auth context
+const mockUserRole: 'admin' | 'teacher' | 'student' | 'parent' = 'student';
 
 const Dashboard = () => {
   // Mock student data
@@ -25,6 +29,7 @@ const Dashboard = () => {
     currentCourse: 'Python для начинающих',
     currentCourseProgress: 65,
     coins: 1250,
+    balance: 2500, // Balance in rubles
     streak: 7,
     level: 5,
     achievements: 12,
@@ -87,6 +92,18 @@ const Dashboard = () => {
                     <span className="text-muted-foreground text-sm">достижений</span>
                   </RouterLink>
                 </div>
+
+                {/* Balance Display - Only for Students */}
+                {mockUserRole === 'student' && (
+                  <RouterLink 
+                    to="/dashboard/balance" 
+                    className="flex items-center gap-2 mt-4 md:mt-0 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 hover:border-yellow-500/50 transition-all"
+                  >
+                    <Wallet className="w-5 h-5 text-yellow-500" />
+                    <span className="font-bold text-foreground">{student.balance.toLocaleString('ru-RU')} ₽</span>
+                    <span className="text-muted-foreground text-sm">баланс</span>
+                  </RouterLink>
+                )}
               </div>
 
               {/* Edit Profile */}
