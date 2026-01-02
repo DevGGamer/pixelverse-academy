@@ -15,7 +15,8 @@ import {
   Coins,
   ChevronLeft,
   Shield,
-  GraduationCap
+  GraduationCap,
+  Wallet
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/dashboard/schedule', label: 'Расписание', icon: Calendar, roles: ['student', 'parent', 'teacher', 'admin'] },
   { path: '/dashboard/projects', label: 'Мои проекты', icon: FolderOpen, roles: ['student', 'parent', 'admin'] },
   { path: '/dashboard/achievements', label: 'Достижения', icon: Trophy, roles: ['student', 'parent', 'admin'] },
+  { path: '/dashboard/balance', label: 'Баланс', icon: Wallet, roles: ['student'] },
   { path: '/dashboard/community', label: 'Сообщество', icon: Users, roles: ['student', 'parent', 'teacher', 'admin'] },
   { path: '/dashboard/admin', label: 'Админ панель', icon: Shield, roles: ['admin'] },
   { path: '/dashboard/methodologist', label: 'Панель методиста', icon: GraduationCap, roles: ['admin', 'teacher'] },
